@@ -13,15 +13,15 @@ namespace DiceThrow.EditorTools
     [InitializeOnLoad]
     public static class ThrowTestSceneBuilder
     {
-        private const string RootFolder = "Assets/DiceThrow";
+        internal const string RootFolder = "Assets/DiceThrow";
         private const string ScenePath = RootFolder + "/Scenes/ThrowTest.unity";
-        private const string MaterialFolder = RootFolder + "/Materials";
+        internal const string MaterialFolder = RootFolder + "/Materials";
         private const string RigPath = "Assets/Samples/XR Interaction Toolkit/3.1.3/Starter Assets/Prefabs/XR Origin (XR Rig).prefab";
         private const string AutoBuiltKey = "DiceThrow.ThrowTestScene.AutoBuilt";
 
         private const float TableTop = 0.8f;
 
-        private enum ColliderMode { Keep, Convex, None }
+        internal enum ColliderMode { Keep, Convex, None }
 
         static ThrowTestSceneBuilder()
         {
@@ -76,7 +76,7 @@ namespace DiceThrow.EditorTools
             Debug.Log($"[ThrowTestSceneBuilder] {ScenePath} を作成しました。");
         }
 
-        private static void CreateEnvironment(Material floorMat, Material markerMat, Material tableMat, Material targetMat)
+        internal static void CreateEnvironment(Material floorMat, Material markerMat, Material tableMat, Material targetMat, bool withTable = true)
         {
             var light = new GameObject("Directional Light").AddComponent<Light>();
             light.type = LightType.Directional;
@@ -107,8 +107,11 @@ namespace DiceThrow.EditorTools
                 CreateLabel(markers, $"{distance}m", new Vector3(-4.5f, 0.4f, distance), 3.0f);
             }
 
-            var table = Part(null, PrimitiveType.Cube, new Vector3(0.0f, TableTop / 2.0f, 0.75f), Vector3.zero, new Vector3(2.0f, TableTop, 0.7f), tableMat, ColliderMode.Keep);
-            table.name = "Table";
+            if (withTable)
+            {
+                var table = Part(null, PrimitiveType.Cube, new Vector3(0.0f, TableTop / 2.0f, 0.75f), Vector3.zero, new Vector3(2.0f, TableTop, 0.7f), tableMat, ColliderMode.Keep);
+                table.name = "Table";
+            }
 
             // 12m 先に崩せる箱のピラミッド
             var targets = new GameObject("Target Boxes").transform;
@@ -129,30 +132,13 @@ namespace DiceThrow.EditorTools
         {
             var items = new GameObject("Items").transform;
 
-            // 手前の列: 石・リンゴ・ロープ・盾・爆弾 / 奥の列: やり
-            var stone = Item(items, "Stone", 0.4f, 0.0f, new Vector3(-0.8f, TableTop + 0.045f, 0.55f), Quaternion.identity);
-            Part(stone, PrimitiveType.Sphere, Vector3.zero, Vector3.zero, new Vector3(0.09f, 0.07f, 0.08f), GetMaterial("Stone", new Color(0.35f, 0.35f, 0.38f)), ColliderMode.Keep);
-
-            var apple = Item(items, "Apple", 0.2f, 0.15f, new Vector3(-0.55f, TableTop + 0.05f, 0.55f), Quaternion.identity);
-            Part(apple, PrimitiveType.Sphere, Vector3.zero, Vector3.zero, Vector3.one * 0.09f, GetMaterial("Apple", new Color(0.8f, 0.1f, 0.1f)), ColliderMode.Keep);
-            Part(apple, PrimitiveType.Cylinder, new Vector3(0.0f, 0.05f, 0.0f), Vector3.zero, new Vector3(0.01f, 0.015f, 0.01f), GetMaterial("Stem", new Color(0.3f, 0.2f, 0.1f)), ColliderMode.None);
-
-            var rope = Item(items, "Rope", 1.0f, 0.3f, new Vector3(-0.25f, TableTop + 0.045f, 0.55f), Quaternion.identity);
-            Part(rope, PrimitiveType.Cylinder, Vector3.zero, Vector3.zero, new Vector3(0.25f, 0.04f, 0.25f), GetMaterial("Rope", new Color(0.75f, 0.6f, 0.35f)), ColliderMode.Convex);
-
-            var shield = Item(items, "Shield", 4.0f, 0.1f, new Vector3(0.2f, TableTop + 0.025f, 0.6f), Quaternion.identity);
-            Part(shield, PrimitiveType.Cylinder, Vector3.zero, Vector3.zero, new Vector3(0.6f, 0.02f, 0.6f), GetMaterial("Shield", new Color(0.2f, 0.35f, 0.8f)), ColliderMode.Convex);
-
-            var bomb = Item(items, "Bomb", 3.0f, 0.0f, new Vector3(0.75f, TableTop + 0.105f, 0.55f), Quaternion.identity);
-            Part(bomb, PrimitiveType.Sphere, Vector3.zero, Vector3.zero, Vector3.one * 0.2f, GetMaterial("Bomb", new Color(0.1f, 0.1f, 0.1f)), ColliderMode.Keep);
-            Part(bomb, PrimitiveType.Cylinder, new Vector3(0.0f, 0.12f, 0.0f), Vector3.zero, new Vector3(0.02f, 0.03f, 0.02f), GetMaterial("Fuse", new Color(0.9f, 0.85f, 0.7f)), ColliderMode.None);
-
-            // やりは +Z が穂先。机の奥に横向き（穂先が右）に置く
-            var spear = Item(items, "Spear", 2.0f, 0.02f, new Vector3(0.0f, TableTop + 0.03f, 0.95f), Quaternion.Euler(0.0f, 90.0f, 0.0f));
-            spear.GetComponent<ThrowableItem>().alignToVelocity = true;
-            var spearMat = GetMaterial("Spear", new Color(0.6f, 0.45f, 0.3f));
-            Part(spear, PrimitiveType.Cylinder, Vector3.zero, new Vector3(90.0f, 0.0f, 0.0f), new Vector3(0.035f, 0.85f, 0.035f), spearMat, ColliderMode.Keep);
-            Part(spear, PrimitiveType.Cube, new Vector3(0.0f, 0.0f, 0.9f), new Vector3(0.0f, 45.0f, 0.0f), new Vector3(0.07f, 0.02f, 0.07f), GetMaterial("SpearTip", new Color(0.8f, 0.8f, 0.85f)), ColliderMode.Keep);
+            // 手前の列: 石・リンゴ・ロープ・盾・爆弾 / 奥の列: やり（+Z が穂先。横向きで穂先が右）
+            PlaceItem(items, "Stone", new Vector3(-0.8f, TableTop + 0.045f, 0.55f), Quaternion.identity);
+            PlaceItem(items, "Apple", new Vector3(-0.55f, TableTop + 0.05f, 0.55f), Quaternion.identity);
+            PlaceItem(items, "Rope", new Vector3(-0.25f, TableTop + 0.045f, 0.55f), Quaternion.identity);
+            PlaceItem(items, "Shield", new Vector3(0.2f, TableTop + 0.025f, 0.6f), Quaternion.identity);
+            PlaceItem(items, "Bomb", new Vector3(0.75f, TableTop + 0.105f, 0.55f), Quaternion.identity);
+            PlaceItem(items, "Spear", new Vector3(0.0f, TableTop + 0.03f, 0.95f), Quaternion.Euler(0.0f, 90.0f, 0.0f));
 
             // 机の前面に名前と重さ
             CreateItemLabel("Stone\n0.4kg", -0.8f);
@@ -173,11 +159,70 @@ namespace DiceThrow.EditorTools
             manager.resultText = board;
         }
 
-        private static Transform Item(Transform parent, string name, float mass, float drag, Vector3 position, Quaternion rotation)
+        private static void PlaceItem(Transform parent, string name, Vector3 position, Quaternion rotation)
+        {
+            var item = CreateItem(name);
+            item.transform.SetParent(parent);
+            item.transform.SetPositionAndRotation(position, rotation);
+        }
+
+        /// <summary>
+        /// 道具を 1 つ原点に作る。さいころシーンのプレハブ作成でも使う
+        /// </summary>
+        internal static GameObject CreateItem(string name)
+        {
+            switch (name)
+            {
+                case "Stone":
+                {
+                    var stone = Item("Stone", 0.4f, 0.0f);
+                    Part(stone, PrimitiveType.Sphere, Vector3.zero, Vector3.zero, new Vector3(0.09f, 0.07f, 0.08f), GetMaterial("Stone", new Color(0.35f, 0.35f, 0.38f)), ColliderMode.Keep);
+                    return stone.gameObject;
+                }
+                case "Apple":
+                {
+                    var apple = Item("Apple", 0.2f, 0.15f);
+                    Part(apple, PrimitiveType.Sphere, Vector3.zero, Vector3.zero, Vector3.one * 0.09f, GetMaterial("Apple", new Color(0.8f, 0.1f, 0.1f)), ColliderMode.Keep);
+                    Part(apple, PrimitiveType.Cylinder, new Vector3(0.0f, 0.05f, 0.0f), Vector3.zero, new Vector3(0.01f, 0.015f, 0.01f), GetMaterial("Stem", new Color(0.3f, 0.2f, 0.1f)), ColliderMode.None);
+                    return apple.gameObject;
+                }
+                case "Rope":
+                {
+                    var rope = Item("Rope", 1.0f, 0.3f);
+                    Part(rope, PrimitiveType.Cylinder, Vector3.zero, Vector3.zero, new Vector3(0.25f, 0.04f, 0.25f), GetMaterial("Rope", new Color(0.75f, 0.6f, 0.35f)), ColliderMode.Convex);
+                    return rope.gameObject;
+                }
+                case "Shield":
+                {
+                    var shield = Item("Shield", 4.0f, 0.1f);
+                    Part(shield, PrimitiveType.Cylinder, Vector3.zero, Vector3.zero, new Vector3(0.6f, 0.02f, 0.6f), GetMaterial("Shield", new Color(0.2f, 0.35f, 0.8f)), ColliderMode.Convex);
+                    return shield.gameObject;
+                }
+                case "Bomb":
+                {
+                    var bomb = Item("Bomb", 3.0f, 0.0f);
+                    Part(bomb, PrimitiveType.Sphere, Vector3.zero, Vector3.zero, Vector3.one * 0.2f, GetMaterial("Bomb", new Color(0.1f, 0.1f, 0.1f)), ColliderMode.Keep);
+                    Part(bomb, PrimitiveType.Cylinder, new Vector3(0.0f, 0.12f, 0.0f), Vector3.zero, new Vector3(0.02f, 0.03f, 0.02f), GetMaterial("Fuse", new Color(0.9f, 0.85f, 0.7f)), ColliderMode.None);
+                    return bomb.gameObject;
+                }
+                case "Spear":
+                {
+                    // +Z が穂先
+                    var spear = Item("Spear", 2.0f, 0.02f);
+                    spear.GetComponent<ThrowableItem>().alignToVelocity = true;
+                    var spearMat = GetMaterial("Spear", new Color(0.6f, 0.45f, 0.3f));
+                    Part(spear, PrimitiveType.Cylinder, Vector3.zero, new Vector3(90.0f, 0.0f, 0.0f), new Vector3(0.035f, 0.85f, 0.035f), spearMat, ColliderMode.Keep);
+                    Part(spear, PrimitiveType.Cube, new Vector3(0.0f, 0.0f, 0.9f), new Vector3(0.0f, 45.0f, 0.0f), new Vector3(0.07f, 0.02f, 0.07f), GetMaterial("SpearTip", new Color(0.8f, 0.8f, 0.85f)), ColliderMode.Keep);
+                    return spear.gameObject;
+                }
+                default:
+                    throw new System.ArgumentException($"未知の道具: {name}");
+            }
+        }
+
+        private static Transform Item(string name, float mass, float drag)
         {
             var root = new GameObject(name);
-            root.transform.SetParent(parent);
-            root.transform.SetPositionAndRotation(position, rotation);
 
             // Rigidbody と XRGrabInteractable は RequireComponent で自動追加される
             var item = root.AddComponent<ThrowableItem>();
@@ -189,7 +234,7 @@ namespace DiceThrow.EditorTools
             return root.transform;
         }
 
-        private static GameObject Part(Transform parent, PrimitiveType type, Vector3 localPosition, Vector3 localEuler, Vector3 localScale, Material material, ColliderMode colliderMode)
+        internal static GameObject Part(Transform parent, PrimitiveType type, Vector3 localPosition, Vector3 localEuler, Vector3 localScale, Material material, ColliderMode colliderMode)
         {
             var part = GameObject.CreatePrimitive(type);
             part.transform.SetParent(parent, false);
@@ -215,7 +260,7 @@ namespace DiceThrow.EditorTools
             CreateLabel(null, text, new Vector3(x, 0.65f, 0.39f), 0.5f);
         }
 
-        private static TextMeshPro CreateLabel(Transform parent, string text, Vector3 position, float fontSize)
+        internal static TextMeshPro CreateLabel(Transform parent, string text, Vector3 position, float fontSize)
         {
             var label = new GameObject("Label").AddComponent<TextMeshPro>();
             label.transform.SetParent(parent);
@@ -228,7 +273,7 @@ namespace DiceThrow.EditorTools
             return label;
         }
 
-        private static Material GetMaterial(string name, Color color)
+        internal static Material GetMaterial(string name, Color color)
         {
             string path = $"{MaterialFolder}/{name}.mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -240,7 +285,7 @@ namespace DiceThrow.EditorTools
             return material;
         }
 
-        private static void EnsureFolder(string path)
+        internal static void EnsureFolder(string path)
         {
             if (AssetDatabase.IsValidFolder(path))
                 return;

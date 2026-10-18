@@ -22,6 +22,32 @@ namespace DiceThrow
         [Tooltip("重さが飛び方に与える影響。0 で重さに関係なく同じ速さ")]
         [Range(0, 1)] public float weightInfluence = 0.35f;
 
+        [Header("投げる操作の補助")]
+        [Tooltip("オン: 振った勢いと向きから投げる速さを決める（離す瞬間のぶれに強い）。オフ: XRI 標準の投げ方")]
+        public bool useSwingThrow = true;
+
+        [Tooltip("この手の速さ（m/s）より遅く離したときは、投げずにそっと置く（投擲力の倍率をかけない）")]
+        public float minThrowSpeed = 1.0f;
+
+        [Tooltip("振った速さを測る時間（秒）。離す直前のこの時間で一番速かった勢いで飛ぶ")]
+        public float swingWindow = 0.12f;
+
+        [Tooltip("狙いの補正: 振った向きからこの角度（度）以内に的があれば、的に届くように向きを直す。0 で補正なし")]
+        [Range(0, 30)] public float aimAssistAngle = 10.0f;
+
+        [Tooltip("狙いの補正をする最大距離（m）")]
+        public float aimAssistDistance = 30.0f;
+
+        [Header("投げる道筋の表示")]
+        [Tooltip("振っている間、離したら飛ぶ道筋を表示し、投げた後もしばらく残す")]
+        public bool showTrajectory = true;
+
+        [Tooltip("飛んでいる道具に軌跡を付ける")]
+        public bool showTrail = true;
+
+        [Tooltip("結果ボードに出す操作の説明")]
+        public string hint = "B button: reset items";
+
         [Tooltip("飛距離を表示するテキスト")]
         public TMP_Text resultText = null;
 
@@ -92,7 +118,7 @@ namespace DiceThrow
 
             var builder = new StringBuilder();
             builder.AppendLine(lastThrow == "" ? "Grab and throw!" : $"Last: {lastThrow}");
-            builder.AppendLine("<size=70%>B button: reset items</size>");
+            builder.AppendLine($"<size=70%>{hint}</size>");
 
             foreach (var pair in bestDistances)
                 builder.AppendLine($"<size=70%>Best {pair.Key}: {pair.Value:F1} m</size>");
