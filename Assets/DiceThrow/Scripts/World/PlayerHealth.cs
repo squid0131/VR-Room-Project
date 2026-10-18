@@ -66,16 +66,17 @@ namespace DiceThrow
         }
 
         /// <summary>
-        /// ダメージを受ける。source の方向に構えた盾があれば防ぐ。受けたら true
+        /// ダメージを受ける。source の方向に構えた盾があれば防ぎ、attacker（攻撃してきた敵）がいれば跳ね返す。
+        /// ロープで引っ張られている間は受けない。受けたら true
         /// </summary>
-        public bool TakeDamage(int amount, Vector3 source)
+        public bool TakeDamage(int amount, Vector3 source, Component attacker = null)
         {
-            if (IsDead || Time.time - lastDamageTime < invincibleTime)
+            if (IsDead || rig.IsPulling || Time.time - lastDamageTime < invincibleTime)
                 return false;
 
-            if (ShieldBehaviour.IsBlocking(rig.HeadPosition, source))
+            if (ShieldBehaviour.TryBlock(rig.HeadPosition, source, attacker, out bool countered))
             {
-                ShowMessage("Blocked!");
+                ShowMessage(countered ? "Counter!" : "Blocked!");
                 foreach (var h in haptics)
                     h.SendHapticImpulse(0.4f, 0.1f);
                 return false;
@@ -119,7 +120,7 @@ namespace DiceThrow
             UpdateText();
         }
 
-        private void ShowMessage(string text)
+        public void ShowMessage(string text)
         {
             message = text;
             messageTime = Time.time;

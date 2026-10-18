@@ -64,6 +64,9 @@ namespace DiceThrow
         [Tooltip("右手と道具の間の上方向のすき間（m）")]
         public float spawnGap = 0.06f;
 
+        [Tooltip("縦に立てて出す道具（盾）を、右手からさらに前へ出す距離（m）。盾は手の高さに浮かぶ")]
+        public float uprightForward = 0.12f;
+
         public int LastFace { get; private set; } = 0;
 
         public Transform RightHand => rightHand != null ? rightHand : transform;
@@ -304,9 +307,10 @@ namespace DiceThrow
                 forward = Vector3.forward;
             forward.Normalize();
 
-            Vector3 position = RightHand.position
-                + forward * spawnForward
-                + Vector3.up * (spawnGap + halfHeight);
+            // 縦に立てた盾は、手の上ではなく手の前に、中心が手の高さに来るように浮かべる（持ったときの位置に近い）
+            Vector3 position = upright
+                ? RightHand.position + forward * (spawnForward + uprightForward)
+                : RightHand.position + forward * spawnForward + Vector3.up * (spawnGap + halfHeight);
 
             Quaternion rotation = upright
                 ? Quaternion.LookRotation(Vector3.down, forward)

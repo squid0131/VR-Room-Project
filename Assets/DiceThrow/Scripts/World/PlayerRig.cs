@@ -26,6 +26,9 @@ namespace DiceThrow
         /// <summary>頭（カメラ）の位置</summary>
         public Vector3 HeadPosition => origin.Camera != null ? origin.Camera.transform.position : transform.position;
 
+        /// <summary>足元の高さ（XR Origin は床の高さにある）</summary>
+        public float FeetHeight => transform.position.y;
+
         private XROrigin origin = null;
         private CharacterController characterController = null;
 

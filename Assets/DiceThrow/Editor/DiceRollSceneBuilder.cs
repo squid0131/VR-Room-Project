@@ -68,7 +68,8 @@ namespace DiceThrow.EditorTools
             CreateRopeLedge();
             CreateBreakableWall();
             CreateEnemy(new Vector3(-2.5f, 0.0f, 9.0f));
-            CreateEnemy(new Vector3(2.5f, 0.0f, 9.0f));
+            // 右の敵は離れて弾を投げてくる（盾で跳ね返せる）
+            CreateEnemy(new Vector3(2.5f, 0.0f, 9.0f), ranged: true);
             CreateManager();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -238,8 +239,8 @@ namespace DiceThrow.EditorTools
             ThrowTestSceneBuilder.CreateLabel(null, "BOMB", new Vector3(6.0f, 2.9f, 6.0f), 3.0f);
         }
 
-        /// <summary>試作用の敵。カプセルの体に目が付いている</summary>
-        private static void CreateEnemy(Vector3 position)
+        /// <summary>試作用の敵。カプセルの体に目が付いている。ranged なら離れて弾を投げてくる</summary>
+        private static void CreateEnemy(Vector3 position, bool ranged = false)
         {
             var root = new GameObject("Enemy");
             root.transform.SetPositionAndRotation(position, Quaternion.Euler(0.0f, 180.0f, 0.0f));
@@ -271,7 +272,10 @@ namespace DiceThrow.EditorTools
             hp.color = new Color(1.0f, 0.3f, 0.3f);
             hp.gameObject.AddComponent<FaceCamera>();
 
-            root.AddComponent<SimpleEnemy>().healthText = hp;
+            var enemy = root.AddComponent<SimpleEnemy>();
+            enemy.healthText = hp;
+            enemy.rangedAttack = ranged;
+            enemy.projectileMaterial = ThrowTestSceneBuilder.GetMaterial("EnemyShot", new Color(1.0f, 0.35f, 0.25f));
         }
 
         /// <summary>

@@ -27,6 +27,31 @@ namespace DiceThrow
         [Tooltip("殴ったときのダメージ")]
         public int attackDamage = 1;
 
+        [Tooltip("プレイヤーの足元との高さの差がこれ（m）より大きいと、届かないので追わない・攻撃しない（ロープで台に登ったときなど）")]
+        public float reachHeight = 1.0f;
+
+        [Header("遠くから投げる攻撃")]
+        [Tooltip("オンにすると、離れたところで止まって弾を投げてくる。盾で跳ね返せる")]
+        public bool rangedAttack = false;
+
+        [Tooltip("この距離（m）まで近づいたら止まって投げる")]
+        public float rangedStopDistance = 5.0f;
+
+        [Tooltip("弾を投げる最大距離（m）")]
+        public float rangedRange = 12.0f;
+
+        [Tooltip("弾を投げる間隔（秒）")]
+        public float rangedInterval = 2.5f;
+
+        [Tooltip("弾の速さ（m/s）")]
+        public float projectileSpeed = 6.0f;
+
+        [Tooltip("弾のダメージ")]
+        public int projectileDamage = 1;
+
+        [Tooltip("弾の見た目。空なら体と同じマテリアル")]
+        public Material projectileMaterial = null;
+
         [Tooltip("リンゴを食べ終わるまでの秒数")]
         public float eatDuration = 2.0f;
 
@@ -45,6 +70,16 @@ namespace DiceThrow
         private float eatStartTime = 0.0f;
         private float deathTime = 0.0f;
         private Vector3 knockback = Vector3.zero;
+        private float stunnedUntil = -10.0f;
+
+        public bool IsStunned => Time.time < stunnedUntil;
+        public bool IsDead => mode == Mode.Dead;
+
+        /// <summary>弾を撃ち出す位置（目の高さ）</summary>
+        public Vector3 ShootPoint => transform.position + Vector3.up * 1.2f + transform.forward * 0.4f;
+
+        /// <summary>弾を当てるときに狙う位置（体の中心）</summary>
+        public Vector3 BodyCenter => transform.position + Vector3.up * 0.9f;
 
         private void Awake()
         {
@@ -81,9 +116,19 @@ namespace DiceThrow
                 return;
             }
 
+            // 跳ね返されて怯んでいる間は動かず、攻撃もしない（押し戻されるだけ）
+            if (IsStunned)
+            {
+                ApplyKnockback();
+                return;
+            }
+
             Vector3 player = PlayerRig.Instance != null ? PlayerRig.Instance.HeadPosition : transform.position;
-            bool playerAlive = PlayerHealth.Instance == null || !PlayerHealth.Instance.IsDead;
             float playerDistance = HorizontalDistance(player, transform.position);
+
+            // 高いところ（ロープで登った台など）にいるプレイヤーには届かないので、いないものとして扱う
+            bool reachable = PlayerRig.Instance == null || Mathf.Abs(PlayerRig.Instance.FeetHeight - transform.position.y) <= reachHeight;
+            bool playerAlive = (PlayerHealth.Instance == null || !PlayerHealth.Instance.IsDead) && reachable;
 
             // 優先順位: 食べられるもの（リンゴ） > プレイヤー > 音（石）
             var lure = Lure.FindBest(transform.position);
@@ -95,7 +140,7 @@ namespace DiceThrow
             {
                 SetLure(lure, Mode.Investigate);
             }
-            else if (playerAlive && (playerDistance < aggroRadius || mode == Mode.Chase && playerDistance < aggroRadius * 2.0f))
+            else if (playerAlive && (playerDistance < aggroRadius || mode == Mode.Chase && playerDistance < ChaseRadius))
             {
                 mode = Mode.Chase;
             }
@@ -111,7 +156,8 @@ namespace DiceThrow
             switch (mode)
             {
                 case Mode.Chase:
-                    if (playerDistance > attackRange * 0.8f)
+                    float stopDistance = rangedAttack ? rangedStopDistance : attackRange * 0.8f;
+                    if (playerDistance > stopDistance)
                         MoveTowards(player);
                     else
                         Face(player);
@@ -119,7 +165,13 @@ namespace DiceThrow
                     if (playerAlive && playerDistance < attackRange && Time.time - lastAttackTime > attackInterval)
                     {
                         lastAttackTime = Time.time;
-                        PlayerHealth.Instance?.TakeDamage(attackDamage, transform.position + Vector3.up * 1.2f);
+                        PlayerHealth.Instance?.TakeDamage(attackDamage, transform.position + Vector3.up * 1.2f, this);
+                    }
+                    else if (playerAlive && rangedAttack && playerDistance >= attackRange && playerDistance < rangedRange
+                        && Time.time - lastAttackTime > rangedInterval)
+                    {
+                        lastAttackTime = Time.time;
+                        Shoot(player);
                     }
                     break;
 
@@ -168,12 +220,50 @@ namespace DiceThrow
                     break;
             }
 
+            ApplyKnockback();
+        }
+
+        private float ChaseRadius => rangedAttack ? Mathf.Max(aggroRadius * 2.0f, rangedRange) : aggroRadius * 2.0f;
+
+        private void ApplyKnockback()
+        {
             // 当たったときに少し押し戻される
             if (knockback.sqrMagnitude > 0.0001f)
             {
                 transform.position += knockback * Time.deltaTime;
                 knockback = Vector3.MoveTowards(knockback, Vector3.zero, 8.0f * Time.deltaTime);
             }
+        }
+
+        /// <summary>
+        /// 盾で跳ね返されたとき。direction の向きに押し戻され、stunTime 秒のあいだ怯んで動けない
+        /// </summary>
+        public void Repel(Vector3 direction, float speed, float stunTime)
+        {
+            if (mode == Mode.Dead)
+                return;
+
+            direction.y = 0.0f;
+            knockback += direction.normalized * speed;
+            stunnedUntil = Mathf.Max(stunnedUntil, Time.time + stunTime);
+            // 怯みが解けてすぐには殴れない
+            lastAttackTime = Mathf.Max(lastAttackTime, stunnedUntil - attackInterval * 0.5f);
+
+            if (mode == Mode.Idle || mode == Mode.Investigate || mode == Mode.Return)
+                mode = Mode.Chase;
+        }
+
+        /// <summary>プレイヤーの頭をめがけて弾を投げる</summary>
+        private void Shoot(Vector3 target)
+        {
+            Material material = projectileMaterial;
+            if (material == null)
+            {
+                var r = GetComponentInChildren<MeshRenderer>();
+                material = r != null ? r.sharedMaterial : null;
+            }
+
+            EnemyProjectile.Spawn(this, ShootPoint, target, projectileSpeed, projectileDamage, material);
         }
 
         private void SetLure(Lure lure, Mode newMode)
